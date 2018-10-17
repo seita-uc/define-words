@@ -43,11 +43,9 @@ func crawl(url string) (definition string) {
 		case token == html.StartTagToken:
 			t := tokenizer.Token()
 
-			isTableData := t.Data == "td"
-			if !isTableData {
-				continue
+			if t.Data == "td" {
+				foundDefinition = findDefinition(t)
 			}
-			foundDefinition = findDefinition(t)
 
 		case token == html.TextToken && foundDefinition:
 			t := tokenizer.Token()
