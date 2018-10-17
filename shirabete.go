@@ -1,17 +1,17 @@
 package main
 
 import (
-	"bufio"
+	"encoding/csv"
 	"fmt"
-	"github.com/k0kubun/pp"
 	"github.com/urfave/cli"
 	"golang.org/x/net/html"
+	"io"
 	"net/http"
 	"os"
-	//	"strings"
+	"sync"
 )
 
-func getContentExplanation(t html.Token) bool {
+func findDefinition(t html.Token) bool {
 	for _, a := range t.Attr {
 		if a.Key == "class" && a.Val == "content-explanation ej" {
 			return true
@@ -47,7 +47,7 @@ func crawl(url string) (definition string) {
 			if !isTableData {
 				continue
 			}
-			foundDefinition = getContentExplanation(t)
+			foundDefinition = findDefinition(t)
 
 		case token == html.TextToken && foundDefinition:
 			t := tokenizer.Token()
@@ -64,7 +64,7 @@ func main() {
 
 	// action
 	app.Action = func(c *cli.Context) error {
-		url := "https://ejje.weblio.jp/content/play"
+		url := "https://ejje.weblio.jp/content/"
 		filename := c.Args().Get(0)
 		fp, err := os.Open(filename)
 		if err != nil {
@@ -72,16 +72,42 @@ func main() {
 		}
 		defer fp.Close()
 
-		scanner := bufio.NewScanner(fp)
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			return err
-		}
-		definition := crawl(url)
+		reader := csv.NewReader(fp)
+		reader.TrimLeadingSpace = true
+		wordChan := make(chan string, 50)
 
-		pp.Print("\nFound %s", definition)
+		go func() {
+			for {
+				record, err := reader.Read()
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					fmt.Printf("ERROR: Failed to read file: %s", err.Error())
+				}
+
+				for _, value := range record {
+					if value != "" {
+						wordChan <- value
+					}
+				}
+			}
+
+			close(wordChan)
+		}()
+
+		wg := &sync.WaitGroup{}
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+			go func() {
+				for word := range wordChan {
+					definition := crawl(fmt.Sprintf("%s%s", url, word))
+					fmt.Printf("\n%s: %s", word, definition)
+				}
+				wg.Done()
+			}()
+		}
+
+		wg.Wait()
 		return nil
 	}
 
