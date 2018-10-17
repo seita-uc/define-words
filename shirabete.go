@@ -1,19 +1,19 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/k0kubun/pp"
+	"github.com/urfave/cli"
 	"golang.org/x/net/html"
 	"net/http"
-	//	"os"
+	"os"
 	//	"strings"
 )
 
 func getContentExplanation(t html.Token) bool {
 	for _, a := range t.Attr {
 		if a.Key == "class" && a.Val == "content-explanation ej" {
-			pp.Print(t)
-			pp.Print(t.String())
 			return true
 		}
 	}
@@ -57,13 +57,33 @@ func crawl(url string) (definition string) {
 }
 
 func main() {
-	url := "https://ejje.weblio.jp/content/play"
+	app := cli.NewApp()
+	app.Name = "shirabete"
+	app.Usage = "just set the English words in arguments"
+	app.Version = "1.0.0"
 
-	// Channels
-	// chUrls := make(chan string)
-	// chFinished := make(chan bool)
+	// action
+	app.Action = func(c *cli.Context) error {
+		url := "https://ejje.weblio.jp/content/play"
+		filename := c.Args().Get(0)
+		fp, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+		defer fp.Close()
 
-	definition := crawl(url)
+		scanner := bufio.NewScanner(fp)
+		for scanner.Scan() {
+			fmt.Println(scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+		definition := crawl(url)
 
-	fmt.Printf("\nFound %s", definition)
+		pp.Print("\nFound %s", definition)
+		return nil
+	}
+
+	app.Run(os.Args)
 }
