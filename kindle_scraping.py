@@ -41,27 +41,29 @@ for c in contents:
         u'title': c.text
     })
 
+    time.sleep(1.0)
     c.click()
     time.sleep(2.5)
 
     annotations = driver.find_element_by_id("kp-notebook-annotations")
     yellow_highlights = annotations.find_elements_by_xpath("//div/div/div/div/div[contains(@class, 'kp-notebook-highlight-yellow')]/span[@id='highlight']") 
     blue_highlights = annotations.find_elements_by_xpath("//div/div/div/div/div[contains(@class, 'kp-notebook-highlight-blue')]/span[@id='highlight']") 
+    lines = []
     words = []
 
     for yh in yellow_highlights:
-        matched = re.search(r'[a-zA-Z]', yh.text)
-        if matched:
+        Japanese = re.search(u'[ァ-ンぁ-ん一-龥]', yh.text)
+        English = re.search(r'[a-zA-Z]', yh.text)
+        if Japanese:
+            lines.append(yh.text)
+        elif English:
             if not re.match('.+[\s].+', yh.text):
                 highlighted_word = re.sub(r'[^a-zA-Z]', "", yh.text)
                 matched = re.search(r'[a-zA-Z]', highlighted_word)
                 if matched:
                     words.append(highlighted_word)
                 continue
-            linesRef = docRef.collection('lines').document(yh.text)
-            batch.set(linesRef, {
-                u'line': yh.text
-            })
+            lines.append(yh.text)
 
     for bh in blue_highlights:
         highlighted_word = re.sub(r'[^a-zA-Z]', "", bh.text)
@@ -69,6 +71,12 @@ for c in contents:
         if matched:
             if not highlighted_word in words:
                 words.append(highlighted_word)
+
+    for line in lines:
+        linesRef = docRef.collection('lines').document(line)
+        batch.set(linesRef, {
+            u'line': line
+        })
 
     for word in words:
         wordsRef = docRef.collection('words').document(word)
