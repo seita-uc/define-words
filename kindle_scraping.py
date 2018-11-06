@@ -6,6 +6,8 @@ import os
 import re
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+import requests
+from bs4 import BeautifulSoup
 
 import firebase_admin
 from firebase_admin import credentials
@@ -80,10 +82,21 @@ for c in contents:
 
     for word in words:
         wordsRef = docRef.collection('words').document(word)
-        batch.set(wordsRef, {
-            u'word': word
-        })
 
+        url = 'https://ejje.weblio.jp/content/'
+        page = requests.get(url + word)
+        definition = "definition not found"
+
+        try:
+            soup = BeautifulSoup(page.content, 'html.parser')
+            definition = soup.find(class_='content-explanation ej').get_text()
+        except:
+            definition = "definition not found"
+
+        batch.set(wordsRef, {
+            u'word': word,
+            u'definition': definition
+        })
 
     batch.commit()
     print 'saved: %s' % c.text
