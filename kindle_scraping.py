@@ -38,8 +38,8 @@ contents = driver.find_elements_by_xpath("//div/span/a/h2[contains(@class, 'kp-n
 
 for c in contents:
     batch = db.batch()
-    docRef = db.collection(u'books').document(c.text)
-    batch.set(docRef, {
+    bookRef = db.collection(u'books').document(c.text)
+    batch.set(bookRef, {
         u'title': c.text
     })
 
@@ -50,38 +50,55 @@ for c in contents:
     annotations = driver.find_element_by_id("kp-notebook-annotations")
     yellow_highlights = annotations.find_elements_by_xpath("//div/div/div/div/div[contains(@class, 'kp-notebook-highlight-yellow')]/span[@id='highlight']") 
     blue_highlights = annotations.find_elements_by_xpath("//div/div/div/div/div[contains(@class, 'kp-notebook-highlight-blue')]/span[@id='highlight']") 
+
+    dataStoredInFireStore = []
+
+    linesRef = bookRef.collection('lines')
+    linesDocs = linesRef.get()
+    for doc in linesDocs:
+        dataStoredInFireStore.append(doc.id)
+
+    wordsRef = bookRef.collection('words')
+    wordsDocs = wordsRef.get()
+    for doc in wordsDocs:
+        dataStoredInFireStore.append(doc.id)
+
     lines = []
     words = []
 
     for yh in yellow_highlights:
         Japanese = re.search(u'[ァ-ンぁ-ん一-龥]', yh.text)
         English = re.search(r'[a-zA-Z]', yh.text)
-        if Japanese:
-            lines.append(yh.text)
-        elif English:
-            if not re.match('.+[\s].+', yh.text):
-                highlighted_word = re.sub(r'[^a-zA-Z]', "", yh.text)
-                matched = re.search(r'[a-zA-Z]', highlighted_word)
-                if matched:
-                    words.append(highlighted_word)
-                continue
-            lines.append(yh.text)
+        if not yh.text in dataStoredInFireStore:
+            if Japanese:
+                lines.append(yh.text)
+            elif English:
+                if not re.match('.+[\s].+', yh.text):
+                    highlighted_word = re.sub(r'[^a-zA-Z]', "", yh.text)
+                    matched = re.search(r'[a-zA-Z]', highlighted_word)
+                    if matched and not highlighted_word in dataStoredInFireStore:
+                        print 'new word: %s' % highlighted_word
+                        words.append(highlighted_word)
+                    continue
+                print 'new line: %s' % yh.text
+                lines.append(yh.text)
 
     for bh in blue_highlights:
         highlighted_word = re.sub(r'[^a-zA-Z]', "", bh.text)
         matched = re.search(r'[a-zA-Z]', highlighted_word)
         if matched:
-            if not highlighted_word in words:
+            if not highlighted_word in dataStoredInFireStore:
+                print 'new word: %s' % highlighted_word
                 words.append(highlighted_word)
 
     for line in lines:
-        linesRef = docRef.collection('lines').document(line)
-        batch.set(linesRef, {
+        lineRef = bookRef.collection('lines').document(line)
+        batch.set(lineRef, {
             u'line': line
         })
 
     for word in words:
-        wordsRef = docRef.collection('words').document(word)
+        wordRef = bookRef.collection('words').document(word)
 
         url = 'https://ejje.weblio.jp/content/'
         page = requests.get(url + word)
@@ -93,7 +110,7 @@ for c in contents:
         except:
             definition = "definition not found"
 
-        batch.set(wordsRef, {
+        batch.set(wordRef, {
             u'word': word,
             u'definition': definition
         })
