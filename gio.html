@@ -1,0 +1,63 @@
+<head>
+  <script src="https://threejs.org/build/three.min.js"></script>    
+  <script src="https://raw.githack.com/syt123450/giojs/master/build/gio.min.js"></script>
+  <script type="text/javascript" src="http://code.jquery.com/jquery.min.js"></script>
+</head>
+
+<div id="globeArea" style="width: 700px; height: 700px"></div>
+<input type="button" value="Exec" onclick="OnButtonClick();"/>
+
+<script>
+  var container = document.getElementById("globeArea");
+  var config = {
+	  "control": {
+	  	"stats": false,
+	  	"disableUnmentioned": false,
+	  	"lightenMentioned": true,
+	  	"inOnly": false,
+	  	"outOnly": false,
+	  	"initCountry": "US",
+	  	"halo": true
+	  },
+	  "color": {
+	  	"surface": 1880097,
+	  	"selected": 2107106,
+	  	"in": 0,
+	  	"out": 0,
+	  	"halo": 2141154,
+	  	"background": 0
+	  },
+	  "brightness": {
+	  	"ocean": 1,
+	  	"mentioned": 1,
+	  	"related": 1
+    }
+  };
+
+  $(function(){
+    $.getJSON('./english_distribution/native_english_speaking_countries.json')
+      .done(function(json) {
+        let data = []
+        jsonData = json
+        for(let countryName in jsonData) {
+          console.log(jsonData[countryName])
+          data.push({
+            e: "GB",
+            i: jsonData[countryName],
+            v: "1000000"
+          });
+        }
+        var controller = new GIO.Controller(container,config);
+        console.log(data)
+        controller.addData(data);
+        controller.init();
+      })
+      .fail(function(error) {
+        console.log('failed')
+      })
+  });
+
+  function OnButtonClick() {
+    console.log('hogehoge')
+  }
+</script>
