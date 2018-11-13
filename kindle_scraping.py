@@ -35,12 +35,24 @@ driver.find_element_by_id("signInSubmit").click()
 driver.find_element_by_id("ap_password").send_keys(password)
 driver.find_element_by_id("signInSubmit").click()
 contents = driver.find_elements_by_xpath("//div/span/a/h2[contains(@class, 'kp-notebook-searchable')]")
+book_cover_image_url = driver.find_element_by_class_name("kp-notebook-cover-image").get_attribute("src")
+
+books = driver.find_elements_by_class_name("kp-notebook-library-each-book")
+for book in books:
+    book_cover_image_url = book.find_element_by_class_name("kp-notebook-cover-image").get_attribute("src")
+    print book_cover_image_url
+    title = book.find_element_by_class_name("kp-notebook-searchable")
+    print title.text
 
 for c in contents:
     batch = db.batch()
     bookRef = db.collection(u'books').document(c.text)
+
+    book_cover_image_url = re.sub(r'\._SY160', "", book_cover_image_url)
+
     batch.set(bookRef, {
-        u'title': c.text
+        u'title': c.text,
+        u'book_cover_image_url': book_cover_image_url
     })
 
     time.sleep(1.0)
